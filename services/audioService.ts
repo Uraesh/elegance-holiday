@@ -1,27 +1,52 @@
-
+// services/audioService.ts
 export class AmbientAudioService {
   private audio: HTMLAudioElement | null = null;
-  private isInitialized = false;
+  private objectUrl: string | null = null;
 
-  private init() {
-    if (this.isInitialized) return;
-    // Utilisation d'une version instrumentale douce ou de la version demandée
-    // Note : L'utilisateur peut remplacer cette URL par son propre fichier
-    this.audio = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'); 
-    this.audio.loop = true;
-    this.audio.volume = 0.5;
-    this.isInitialized = true;
+  private ensureAudio() {
+    if (!this.audio) {
+      this.audio = new Audio();
+      this.audio.loop = true;
+      this.audio.volume = 0.5;
+    }
+  }
+
+  public setSourceUrl(url: string) {
+    // Use a remote/hosted URL (must be a legal, permitted source)
+    this.cleanupObjectUrl();
+    this.ensureAudio();
+    if (this.audio) {
+      this.audio.src = url;
+    }
+  }
+
+  public setSourceFile(file: File) {
+    // Use a local file selected by the user (File from <input type="file">)
+    this.cleanupObjectUrl();
+    this.ensureAudio();
+    const obj = URL.createObjectURL(file);
+    this.objectUrl = obj;
+    if (this.audio) {
+      this.audio.src = obj;
+    }
+  }
+
+  private cleanupObjectUrl() {
+    if (this.objectUrl) {
+      try {
+        URL.revokeObjectURL(this.objectUrl);
+      } catch (_) {}
+      this.objectUrl = null;
+    }
   }
 
   public async toggle(play: boolean) {
-    if (!this.isInitialized) this.init();
     if (!this.audio) return;
-
     if (play) {
       try {
         await this.audio.play();
       } catch (err) {
-        console.error("Audio playback failed:", err);
+        console.error('Audio playback failed:', err);
       }
     } else {
       this.audio.pause();
@@ -31,6 +56,15 @@ export class AmbientAudioService {
   public setVolume(volume: number) {
     if (this.audio) {
       this.audio.volume = Math.max(0, Math.min(1, volume));
+    }
+  }
+
+  public dispose() {
+    this.cleanupObjectUrl();
+    if (this.audio) {
+      this.audio.pause();
+      this.audio.src = '';
+      this.audio = null;
     }
   }
 }
